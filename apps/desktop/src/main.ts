@@ -6,14 +6,25 @@ import { app, BrowserWindow, dialog, shell } from "electron";
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL?.trim();
 const isDevelopment = Boolean(devServerUrl);
-const webClientDir = Path.resolve(__dirname, "../../web/dist/client");
-const webServerEntry = Path.resolve(__dirname, "../../web/dist/server/server.js");
+const packagedResourcesDir = process.resourcesPath;
+const webDistDir = app.isPackaged
+  ? Path.join(packagedResourcesDir, "web", "dist")
+  : Path.resolve(__dirname, "../../web/dist");
+const webClientDir = Path.join(webDistDir, "client");
+const webServerEntry = Path.join(webDistDir, "server", "server.js");
 const apiPort = Number(process.env.ICPC_TRAINER_API_PORT ?? 4123);
 const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
 const webPort = Number(process.env.ICPC_TRAINER_WEB_PORT ?? 4124);
 const webBaseUrl = `http://127.0.0.1:${webPort}`;
-const serverCwd = Path.resolve(__dirname, "../../server");
-const serverEntry = Path.resolve(serverCwd, "src/main.ts");
+const serverCwd = app.isPackaged
+  ? Path.join(packagedResourcesDir, "server")
+  : Path.resolve(__dirname, "../../server");
+const serverEntry = app.isPackaged
+  ? Path.join(serverCwd, "dist-bun", "main.js")
+  : Path.resolve(serverCwd, "src/main.ts");
+const bundledBunExecutable = app.isPackaged
+  ? Path.join(packagedResourcesDir, "bin", process.platform === "win32" ? "bun.exe" : "bun")
+  : "bun";
 
 let backendProcess: ChildProcess | null = null;
 let webServer: Server | null = null;
@@ -55,11 +66,22 @@ function startBackend() {
     return backendProcess;
   }
 
-  const child = spawn("bun", [serverEntry], {
+  if (app.isPackaged && !existsSync(bundledBunExecutable)) {
+    throw new Error(`Bundled Bun runtime not found at ${bundledBunExecutable}.`);
+  }
+
+  const databaseUrl =
+    process.env.DATABASE_URL?.trim()
+    || (app.isPackaged ? Path.join(app.getPath("userData"), "icpc-trainer.db") : undefined);
+  const drizzleDir = app.isPackaged ? Path.join(serverCwd, "drizzle") : undefined;
+
+  const child = spawn(bundledBunExecutable, [serverEntry], {
     cwd: serverCwd,
     env: {
       ...process.env,
       PORT: String(apiPort),
+      ...(databaseUrl ? { DATABASE_URL: databaseUrl } : {}),
+      ...(drizzleDir ? { ICPC_TRAINER_DRIZZLE_DIR: drizzleDir } : {}),
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

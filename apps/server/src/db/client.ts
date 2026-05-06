@@ -10,7 +10,9 @@ import { PersistenceError } from "../errors/persistence.ts";
 import { tables } from "./schema.ts";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
-const drizzleDirectory = resolve(currentDir, "../../drizzle");
+const drizzleDirectory = process.env.ICPC_TRAINER_DRIZZLE_DIR?.trim()
+  ? resolve(process.env.ICPC_TRAINER_DRIZZLE_DIR)
+  : resolve(currentDir, "../../drizzle");
 
 function createDrizzle(sqlite: Database) {
   return drizzle({ client: sqlite, schema: tables });

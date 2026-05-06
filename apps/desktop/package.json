@@ -1,5 +1,6 @@
 {
   "name": "icpc-trainer-desktop",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -8,15 +9,15 @@
     "build": "tsdown",
     "build:open": "bun run --cwd ../.. build:desktop && bun run start",
     "build:open:fast": "bun run build && bun run start",
+    "dist": "bun run scripts/build-shareable.mjs",
     "start": "node scripts/start-electron.mjs",
     "start:dev": "VITE_DEV_SERVER_URL=http://localhost:3000 electron dist-electron/main.cjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
-  "dependencies": {
-    "electron": "40.9.3"
-  },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "electron": "40.9.3",
+    "electron-builder": "^26.8.1",
     "tsdown": "^0.20.3",
     "typescript": "^6.0.2"
   },
