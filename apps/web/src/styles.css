@@ -1,84 +1,87 @@
-@import 'tailwindcss';
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
 
 :root {
-  color-scheme: light;
-  font-family:
-    'Iosevka', 'SFMono-Regular', 'SF Mono', Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
-  background: #f5f3ef;
-  color: #161616;
+  color-scheme: dark;
+  --bg: #0a0a0a;
+  --bg-elevated: #111;
+  --bg-hover: #161616;
+  --text: #ededed;
+  --text-muted: rgba(237, 237, 237, 0.62);
+  --text-soft: rgba(237, 237, 237, 0.42);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --accent: #0af;
+  --accent-dim: rgba(0, 170, 255, 0.12);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html,
-body,
-#app {
-  min-height: 100vh;
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 body {
-  margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(197, 92, 44, 0.14), transparent 32%),
-    radial-gradient(circle at top right, rgba(24, 90, 157, 0.14), transparent 28%),
-    linear-gradient(180deg, #f7f5f1 0%, #efebe4 100%);
+  color: var(--text);
+  font-family: var(--font-sans);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 a {
-  color: inherit;
+  color: var(--accent);
+  text-decoration: none;
 }
 
-.app-shell {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 2rem;
-}
-
-.hero-card {
-  width: min(42rem, 100%);
-  border: 1px solid rgba(22, 22, 22, 0.12);
-  border-radius: 1.5rem;
-  padding: 3rem;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 24px 60px rgba(22, 22, 22, 0.08);
-  backdrop-filter: blur(10px);
-}
-
-.eyebrow {
-  margin: 0 0 1rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #8b3d16;
-}
-
-.hero-card h1 {
-  margin: 0;
-  font-size: clamp(2.5rem, 8vw, 4.5rem);
-  line-height: 0.95;
-  letter-spacing: -0.08em;
-  text-transform: uppercase;
-}
-
-.lede {
-  margin: 1.5rem 0 0;
-  max-width: 36rem;
-  font-size: 1rem;
-  line-height: 1.8;
-  color: rgba(22, 22, 22, 0.78);
+a:hover {
+  text-decoration: underline;
 }
 
 code {
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.35rem;
-  background: rgba(22, 22, 22, 0.06);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
-@media (max-width: 640px) {
-  .hero-card {
-    padding: 2rem;
+.fade-in {
+  animation: fade-in 500ms ease both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.delay-1 {
+  animation-delay: 60ms;
+}
+.delay-2 {
+  animation-delay: 120ms;
+}
+.delay-3 {
+  animation-delay: 180ms;
+}
+.delay-4 {
+  animation-delay: 240ms;
 }

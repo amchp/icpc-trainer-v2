@@ -3,6 +3,20 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "build:open": "bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/desktop build:open",
+    "build:open:fast": "bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/desktop build:open:fast",
+    "build:open:clear-db": "bun run db:clear && bun run build:open",
+    "build:desktop": "bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/web build && bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/desktop build",
+    "start:desktop": "bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/desktop start",
+    "db:clear": "node scripts/clear-db.mjs",
+    "lint": "oxlint . --ignore-pattern '**/node_modules/**' --ignore-pattern '**/dist-electron/**' --ignore-pattern '**/routeTree.gen.ts'",
+    "test": "bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/web test && bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/server test",
+    "test:e2e:live": "bunx playwright test --config=playwright.config.ts tests/e2e/live",
+    "test:e2e:live:headed": "E2E_HEADLESS=false bun run test:e2e:live",
+    "typecheck": "bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/web typecheck && bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/server typecheck && bun run --cwd /home/automac/Documents/Projects/icpc-trainer-v2/apps/desktop typecheck",
+    "check": "bun run lint && bun run typecheck && bun run test"
+  },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/bun": "^1.3.13",

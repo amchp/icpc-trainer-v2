@@ -9,8 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpsolvingRouteImport } from './routes/upsolving'
+import { Route as TeamRouteImport } from './routes/team'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UpsolvingRoute = UpsolvingRouteImport.update({
+  id: '/upsolving',
+  path: '/upsolving',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +31,50 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/team': typeof TeamRoute
+  '/upsolving': typeof UpsolvingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/team': typeof TeamRoute
+  '/upsolving': typeof UpsolvingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/team': typeof TeamRoute
+  '/upsolving': typeof UpsolvingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/team' | '/upsolving'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/team' | '/upsolving'
+  id: '__root__' | '/' | '/team' | '/upsolving'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TeamRoute: typeof TeamRoute
+  UpsolvingRoute: typeof UpsolvingRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/upsolving': {
+      id: '/upsolving'
+      path: '/upsolving'
+      fullPath: '/upsolving'
+      preLoaderRoute: typeof UpsolvingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,6 +87,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TeamRoute: TeamRoute,
+  UpsolvingRoute: UpsolvingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

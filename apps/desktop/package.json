@@ -6,8 +6,11 @@
   "scripts": {
     "dev:bundle": "tsdown --watch",
     "build": "tsdown",
-    "start": "electron dist-electron/main.cjs",
-    "start:dev": "VITE_DEV_SERVER_URL=http://localhost:3000 electron dist-electron/main.cjs"
+    "build:open": "bun run --cwd ../.. build:desktop && bun run start",
+    "build:open:fast": "bun run build && bun run start",
+    "start": "node scripts/start-electron.mjs",
+    "start:dev": "VITE_DEV_SERVER_URL=http://localhost:3000 electron dist-electron/main.cjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "electron": "40.9.3"
@@ -19,4 +22,3 @@
   },
   "trustedDependencies": ["electron"]
 }
-
