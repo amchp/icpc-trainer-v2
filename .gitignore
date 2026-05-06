@@ -14,6 +14,8 @@ coverage
 logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+test-results
+playwright-report
 
 # dotenv environment variable files
 .env
@@ -33,3 +35,8 @@ tests/e2e/.artifacts
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# local databases
+*.db
+*.sqlite
+*.sqlite3
