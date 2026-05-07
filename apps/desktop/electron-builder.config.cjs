@@ -9,6 +9,7 @@ if (!bunExecutable) {
 module.exports = {
   appId: "com.icpctrainer.desktop",
   productName: "ICPC Trainer",
+  icon: path.resolve(__dirname, "resources/icon.ico"),
   directories: {
     output: "dist",
   },
@@ -45,8 +46,17 @@ module.exports = {
     target: ["zip"],
   },
   win: {
-    artifactName: "${productName}-${version}-windows-${arch}.${ext}",
-    target: ["portable"],
+    icon: path.resolve(__dirname, "resources/icon.ico"),
+    artifactName: "${productName}-${version}-windows-installer-${arch}.${ext}",
+    target: ["nsis"],
+  },
+  nsis: {
+    artifactName: "${productName} Setup ${version}.${ext}",
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
   },
   linux: {
     artifactName: "${productName}-${version}-linux-${arch}.${ext}",

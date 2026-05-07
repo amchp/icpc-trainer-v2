@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import Path from "node:path";
+import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, dialog, shell } from "electron";
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL?.trim();
@@ -12,6 +13,7 @@ const webDistDir = app.isPackaged
   : Path.resolve(__dirname, "../../web/dist");
 const webClientDir = Path.join(webDistDir, "client");
 const webServerEntry = Path.join(webDistDir, "server", "server.js");
+const windowIconPath = Path.join(webClientDir, "icpc_trainer.png");
 const apiPort = Number(process.env.ICPC_TRAINER_API_PORT ?? 4123);
 const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
 const webPort = Number(process.env.ICPC_TRAINER_WEB_PORT ?? 4124);
@@ -28,7 +30,12 @@ const bundledBunExecutable = app.isPackaged
 
 let backendProcess: ChildProcess | null = null;
 let webServer: Server | null = null;
+let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
+
+type NodeRequestInit = RequestInit & {
+  duplex?: "half";
+};
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -187,7 +194,7 @@ async function pipeWebResponse(response: Response, serverResponse: ServerRespons
 }
 
 async function createWebRequestHandler() {
-  const webModule = (await import(webServerEntry)) as {
+  const webModule = (await import(pathToFileURL(webServerEntry).href)) as {
     default?: {
       fetch: (request: Request) => Promise<Response>;
     };
@@ -206,12 +213,13 @@ async function createWebRequestHandler() {
         return;
       }
 
-      const webRequest = new Request(toRequestUrl(request), {
+      const requestInit: NodeRequestInit = {
         method: request.method,
         headers: request.headers as HeadersInit,
-        body: toRequestBody(request),
+        body: toRequestBody(request) as BodyInit | null | undefined,
         duplex: "half",
-      });
+      };
+      const webRequest = new Request(toRequestUrl(request), requestInit);
 
       const webResponse = await handler.fetch(webRequest);
       await pipeWebResponse(webResponse, response);
@@ -307,11 +315,12 @@ async function ensureWebReady() {
 
 function createWindow() {
   process.env.ICPC_TRAINER_API_BASE_URL = apiBaseUrl;
-  const window = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1440,
     height: 960,
     minWidth: 1024,
     minHeight: 720,
+    ...(existsSync(windowIconPath) ? { icon: windowIconPath } : {}),
     webPreferences: {
       preload: Path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -319,18 +328,22 @@ function createWindow() {
     }
   });
 
-  window.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: "deny" };
   });
 
   if (isDevelopment) {
-    void window.loadURL(devServerUrl!);
-    window.webContents.openDevTools({ mode: "detach" });
+    void mainWindow.loadURL(devServerUrl!);
+    mainWindow.webContents.openDevTools({ mode: "detach" });
     return;
   }
 
-  void window.loadURL(webBaseUrl);
+  void mainWindow.loadURL(webBaseUrl);
 }
 
 app.whenReady().then(async () => {
