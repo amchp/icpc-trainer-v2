@@ -200,6 +200,60 @@ describe("services", () => {
     expect(result.statusCalls).toBe(1);
   });
 
+  it("syncs the current user and teammates for teammate roster syncs", async () => {
+    const counter = { statusCalls: 0 };
+    const layer = makeTestApplicationLayer(
+      makeFakeCodeforcesClient({
+        callCounter: counter,
+        submissionsByHandle: {
+          tourist: [
+            {
+              id: 10,
+              problem: {
+                contestId: 100001,
+                index: "A",
+                name: "Current A",
+              },
+              verdict: "OK",
+              creationTimeSeconds: 1_700_000_100,
+            },
+          ],
+          benq: [
+            {
+              id: 11,
+              problem: {
+                contestId: 100001,
+                index: "B",
+                name: "Team B",
+              },
+              verdict: "OK",
+              creationTimeSeconds: 1_700_000_200,
+            },
+          ],
+        },
+      }),
+    );
+
+    const result = await Effect.gen(function* () {
+      const sessionService = yield* SessionService;
+      const rosterService = yield* RosterService;
+      yield* sessionService.login({
+        handle: "tourist",
+        apiKey: "key",
+        apiSecret: "secret",
+      });
+      yield* rosterService.replaceRoster("teammate", ["Benq"]);
+      const sync = yield* rosterService.syncRoster("teammate", true);
+      return {
+        sync,
+        statusCalls: counter.statusCalls,
+      };
+    }).pipe(Effect.provide(layer), Effect.runPromise);
+
+    expect(result.sync.syncedHandles).toEqual(["tourist", "Benq"]);
+    expect(result.statusCalls).toBe(3);
+  });
+
   it("stores only gym submissions during handle sync", async () => {
     const layer = makeTestApplicationLayer(
       makeFakeCodeforcesClient({
@@ -580,6 +634,78 @@ describe("services", () => {
       { index: "B", attempted: true, passed: false },
     ]);
     expect(result.gymFinder.rankings).toEqual([]);
+  });
+
+  it("lists only upsolving contests with two distinct submitted problems across the training group", async () => {
+    const layer = makeTestApplicationLayer(
+      makeFakeCodeforcesClient({
+        submissionsByHandle: {
+          tourist: [
+            {
+              id: 60,
+              problem: {
+                contestId: 1002,
+                index: "A",
+                name: "Duplicate A",
+              },
+              verdict: "WRONG_ANSWER",
+              creationTimeSeconds: 1_700_000_200,
+            },
+            {
+              id: 61,
+              problem: {
+                contestId: 1002,
+                index: "A",
+                name: "Duplicate A",
+              },
+              verdict: "WRONG_ANSWER",
+              creationTimeSeconds: 1_700_000_260,
+            },
+            {
+              id: 62,
+              problem: {
+                contestId: 1003,
+                index: "A",
+                name: "Group A",
+              },
+              verdict: "WRONG_ANSWER",
+              creationTimeSeconds: 1_700_000_300,
+            },
+          ],
+          benq: [
+            {
+              id: 63,
+              problem: {
+                contestId: 1003,
+                index: "B",
+                name: "Group B",
+              },
+              verdict: "OK",
+              creationTimeSeconds: 1_700_000_360,
+            },
+          ],
+        },
+      }),
+    );
+
+    const result = await Effect.gen(function* () {
+      const sessionService = yield* SessionService;
+      const handleSyncService = yield* HandleSyncService;
+      const rosterService = yield* RosterService;
+      const upsolvingService = yield* UpsolvingService;
+      yield* sessionService.login({
+        handle: "tourist",
+        apiKey: "key",
+        apiSecret: "secret",
+      });
+      yield* handleSyncService.syncHandle("tourist", true);
+      yield* rosterService.replaceRoster("teammate", ["Benq"]);
+      return yield* upsolvingService.buildUpsolvingView();
+    }).pipe(Effect.provide(layer), Effect.runPromise);
+
+    expect(result.contests.map((entry) => entry.contest.providerContestKey)).toEqual([
+      "1003",
+    ]);
   });
 
   it("updates ready gym state from accepted teammate submissions without resnapshotting", async () => {

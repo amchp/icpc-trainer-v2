@@ -115,7 +115,7 @@ describe("app routes", () => {
     expect(screen.queryByTestId("gym-finder-page")).not.toBeNull();
   });
 
-  it("starts a team submission sync from the navbar and reloads after completion", async () => {
+  it("starts a training group submission sync from the navbar and reloads after completion", async () => {
     authenticatedSession();
     friendsApi.getFriends.mockResolvedValue({
       role: "friend",

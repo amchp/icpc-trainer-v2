@@ -47,6 +47,13 @@ export interface SubmissionRepositoryShape {
     userIds: ReadonlyArray<number>,
     problemIds: ReadonlyArray<number>,
   ) => Effect.Effect<ReadonlyArray<typeof userProblemState.$inferSelect>, PersistenceError>;
+  readonly listAttemptedProblemIdsByContestForUsers: (
+    userIds: ReadonlyArray<number>,
+    contestIds: ReadonlyArray<number>,
+  ) => Effect.Effect<
+    ReadonlyArray<{ readonly contestId: number; readonly problemId: number }>,
+    PersistenceError
+  >;
   readonly upsertProblemStates: (
     entries: ReadonlyArray<ProblemStateInput>,
   ) => Effect.Effect<void, PersistenceError>;
@@ -305,6 +312,47 @@ export const makeSubmissionRepository = Effect.gen(function* () {
           new PersistenceError({
             code: "problem_state_list_failed",
             message: error instanceof Error ? error.message : "Failed to load problem states.",
+          }),
+      }),
+    listAttemptedProblemIdsByContestForUsers: (userIds, contestIds) =>
+      Effect.try({
+        try: () => {
+          if (userIds.length === 0 || contestIds.length === 0) {
+            return [];
+          }
+
+          const rows = database.db
+            .select({
+              contestId: problems.contestId,
+              problemId: userProblemState.problemId,
+            })
+            .from(userProblemState)
+            .innerJoin(problems, eq(problems.id, userProblemState.problemId))
+            .where(
+              and(
+                inArray(userProblemState.userId, [...userIds]),
+                inArray(problems.contestId, [...contestIds]),
+                eq(userProblemState.attempted, true),
+              ),
+            )
+            .all();
+          const seen = new Set<string>();
+          return rows.filter((row) => {
+            const key = `${row.contestId}:${row.problemId}`;
+            if (seen.has(key)) {
+              return false;
+            }
+            seen.add(key);
+            return true;
+          });
+        },
+        catch: (error) =>
+          new PersistenceError({
+            code: "attempted_problem_list_failed",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Failed to load attempted problems by contest.",
           }),
       }),
     upsertProblemStates: (entries) =>

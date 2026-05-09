@@ -32,6 +32,8 @@ let backendProcess: ChildProcess | null = null;
 let webServer: Server | null = null;
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
+let backendStartupFailure: string | null = null;
+const backendLogBuffer: string[] = [];
 
 type NodeRequestInit = RequestInit & {
   duplex?: "half";
@@ -41,11 +43,31 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function recordBackendLog(stream: "stdout" | "stderr", chunk: unknown) {
+  const message = String(chunk).trimEnd();
+  if (!message) {
+    return;
+  }
+
+  backendLogBuffer.push(`[backend:${stream}] ${message}`);
+  backendLogBuffer.splice(0, Math.max(0, backendLogBuffer.length - 30));
+}
+
+function formatBackendFailure(detail: string) {
+  const recentLogs = backendLogBuffer.length > 0
+    ? `\n\nRecent backend output:\n${backendLogBuffer.join("\n")}`
+    : "";
+
+  return `${detail}${recentLogs}`;
+}
+
 function attachBackendLogs(process: ChildProcess) {
   process.stdout?.on("data", (chunk) => {
+    recordBackendLog("stdout", chunk);
     console.log(`[backend] ${String(chunk).trimEnd()}`);
   });
   process.stderr?.on("data", (chunk) => {
+    recordBackendLog("stderr", chunk);
     console.error(`[backend] ${String(chunk).trimEnd()}`);
   });
 }
@@ -77,10 +99,14 @@ function startBackend() {
     throw new Error(`Bundled Bun runtime not found at ${bundledBunExecutable}.`);
   }
 
-  const databaseUrl =
-    process.env.DATABASE_URL?.trim()
-    || (app.isPackaged ? Path.join(app.getPath("userData"), "icpc-trainer.db") : undefined);
+  const packagedDatabaseUrl =
+    process.env.ICPC_TRAINER_DESKTOP_DATABASE_URL?.trim()
+    || Path.join(app.getPath("userData"), "icpc-trainer.db");
+  const databaseUrl = app.isPackaged ? packagedDatabaseUrl : process.env.DATABASE_URL?.trim();
   const drizzleDir = app.isPackaged ? Path.join(serverCwd, "drizzle") : undefined;
+
+  backendStartupFailure = null;
+  backendLogBuffer.length = 0;
 
   const child = spawn(bundledBunExecutable, [serverEntry], {
     cwd: serverCwd,
@@ -91,14 +117,28 @@ function startBackend() {
       ...(drizzleDir ? { ICPC_TRAINER_DRIZZLE_DIR: drizzleDir } : {}),
     },
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   });
 
   attachBackendLogs(child);
 
+  child.once("error", (error) => {
+    backendProcess = null;
+    backendStartupFailure = formatBackendFailure(
+      `Backend failed to spawn ${bundledBunExecutable}: ${error.message}`,
+    );
+    if (!isQuitting) {
+      console.error(backendStartupFailure);
+    }
+  });
+
   child.once("exit", (code, signal) => {
     backendProcess = null;
+    backendStartupFailure = formatBackendFailure(
+      `Backend exited early (code=${code ?? "unknown"}, signal=${signal ?? "none"}).`,
+    );
     if (!isQuitting) {
-      console.error(`Backend exited early (code=${code}, signal=${signal ?? "none"}).`);
+      console.error(backendStartupFailure);
     }
   });
 
@@ -261,19 +301,32 @@ async function startWebServer() {
 
 async function waitForBackendReady() {
   const deadline = Date.now() + 30_000;
+  let lastHealthError: unknown = null;
 
   while (Date.now() < deadline) {
+    if (backendStartupFailure) {
+      throw new Error(backendStartupFailure);
+    }
+
     try {
       await checkBackendHealth();
       return;
-    } catch {
+    } catch (error) {
       // Retry until the deadline.
+      lastHealthError = error;
     }
 
     await delay(250);
   }
 
-  throw new Error(`Backend did not become ready at ${apiBaseUrl}/api/health.`);
+  const healthDetail = lastHealthError instanceof Error
+    ? ` Last health error: ${lastHealthError.message}`
+    : "";
+  throw new Error(
+    formatBackendFailure(
+      `Backend did not become ready at ${apiBaseUrl}/api/health.${healthDetail}`,
+    ),
+  );
 }
 
 async function waitForWebReady() {

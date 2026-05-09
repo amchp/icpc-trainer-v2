@@ -54,7 +54,7 @@ const SessionServiceFullLive = SessionServiceLive.pipe(
   Layer.provide(BaseLive),
 );
 const RosterServiceFullLive = RosterServiceLive.pipe(
-  Layer.provide(Layer.mergeAll(BaseLive, HandleSyncFullLive)),
+  Layer.provide(Layer.mergeAll(BaseLive, HandleSyncFullLive, SessionServiceFullLive)),
 );
 const GymFinderServiceFullLive = GymFinderServiceLive.pipe(
   Layer.provide(Layer.mergeAll(RepositoryWithDbLive, SessionServiceFullLive)),

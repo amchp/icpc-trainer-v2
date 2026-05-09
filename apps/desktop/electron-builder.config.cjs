@@ -59,6 +59,7 @@ module.exports = {
     createStartMenuShortcut: true,
   },
   linux: {
+    icon: path.resolve(__dirname, "resources/icon.png"),
     artifactName: "${productName}-${version}-linux-${arch}.${ext}",
     target: ["AppImage"],
   },

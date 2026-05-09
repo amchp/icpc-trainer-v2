@@ -10,6 +10,7 @@ import { normalizeUniqueHandles } from "../lib/handles.ts";
 import { isStale } from "../lib/time.ts";
 import { CodeforcesClient } from "./codeforcesClient.ts";
 import { HandleSyncService } from "./handleSync.ts";
+import { SessionService } from "./session.ts";
 
 function toRosterResponse(
   role: ManagedRosterRole,
@@ -65,6 +66,7 @@ export const makeRosterService = Effect.gen(function* () {
   const roleRepository = yield* RoleRepository;
   const handleSyncService = yield* HandleSyncService;
   const codeforcesClient = yield* CodeforcesClient;
+  const sessionService = yield* SessionService;
 
   const getRoster = Effect.fn("roster.getRoster")(function* (role: ManagedRosterRole) {
     const entries = yield* userRepository.listByRole(role).pipe(
@@ -197,19 +199,51 @@ export const makeRosterService = Effect.gen(function* () {
     handles?: ReadonlyArray<string>,
   ) {
     const roster = yield* getRoster(role);
+    const session = role === "teammate"
+      ? yield* sessionService.requireSession().pipe(
+          Effect.mapError(
+            (error) =>
+              new RosterError({
+                code: "roster_load_failed",
+                message: error.message,
+              }),
+          ),
+        )
+      : null;
     const requestedHandles = handles
       ? new Set(handles.map((handle) => handle.trim().toLowerCase()))
       : null;
-    const handlesToSync = roster.entries.filter((entry) => {
-      if (requestedHandles && !requestedHandles.has(entry.user.username.toLowerCase())) {
+    const syncCandidates = [
+      ...(session
+        ? [
+            {
+              username: session.currentUser.username,
+              lastProgressSyncedAt: session.currentUser.lastProgressSyncedAt,
+            },
+          ]
+        : []),
+      ...roster.entries.map((entry) => ({
+        username: entry.user.username,
+        lastProgressSyncedAt: entry.user.lastProgressSyncedAt,
+      })),
+    ];
+    const seenHandles = new Set<string>();
+    const handlesToSync = syncCandidates.filter((entry) => {
+      const handleKey = entry.username.toLowerCase();
+      if (seenHandles.has(handleKey)) {
+        return false;
+      }
+      seenHandles.add(handleKey);
+
+      if (requestedHandles && !requestedHandles.has(handleKey)) {
         return false;
       }
 
-      return force || isStale(entry.user.lastProgressSyncedAt, HANDLE_STALE_MS);
+      return force || isStale(entry.lastProgressSyncedAt, HANDLE_STALE_MS);
     });
 
     for (const entry of handlesToSync) {
-      yield* handleSyncService.syncHandle(entry.user.username, force).pipe(
+      yield* handleSyncService.syncHandle(entry.username, force).pipe(
         Effect.mapError(
           (error) =>
             new RosterError({
@@ -223,7 +257,7 @@ export const makeRosterService = Effect.gen(function* () {
     return {
       ok: true,
       roster: yield* getRoster(role),
-      syncedHandles: handlesToSync.map((entry) => entry.user.username),
+      syncedHandles: handlesToSync.map((entry) => entry.username),
     } satisfies SyncRosterResponse;
   });
 

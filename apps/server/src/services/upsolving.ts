@@ -179,6 +179,38 @@ export const makeUpsolvingService = Effect.gen(function* () {
     return [...byContestId.values()];
   };
 
+  const filterContestsWithTwoDistinctProblems = Effect.fn(
+    "upsolving.filterContestsWithTwoDistinctProblems",
+  )(function* (
+    entries: ReadonlyArray<ReturnType<typeof mergeContestEntries>[number]>,
+    userIds: ReadonlyArray<number>,
+  ) {
+    const attemptedProblems = yield* submissionRepository
+      .listAttemptedProblemIdsByContestForUsers(
+        userIds,
+        entries.map((entry) => entry.contest.id),
+      )
+      .pipe(
+        Effect.mapError(
+          (error) =>
+            new UpsolvingError({
+              code: "attempted_problem_load_failed",
+              message: error.message,
+            }),
+        ),
+      );
+    const attemptedProblemIdsByContestId = new Map<number, Set<number>>();
+    for (const row of attemptedProblems) {
+      const bucket = attemptedProblemIdsByContestId.get(row.contestId) ?? new Set<number>();
+      bucket.add(row.problemId);
+      attemptedProblemIdsByContestId.set(row.contestId, bucket);
+    }
+
+    return entries.filter(
+      (entry) => (attemptedProblemIdsByContestId.get(entry.contest.id)?.size ?? 0) >= 2,
+    );
+  });
+
   const ensureGymContestSnapshot = Effect.fn("upsolving.ensureGymContestSnapshot")(function* (
     contest: typeof import("../db/schema.ts").contests.$inferSelect,
     trackedUsers: ReadonlyArray<{ readonly id: number; readonly username: string }>,
@@ -451,12 +483,16 @@ export const makeUpsolvingService = Effect.gen(function* () {
     }
     const entries = mergeContestEntries(primaryContestEntries);
 
-    const gymEntries = entries.filter(
+    const qualifiedEntries = yield* filterContestsWithTwoDistinctProblems(
+      entries,
+      primaryUserIds,
+    );
+    const gymEntries = qualifiedEntries.filter(
       (entry) => entry.contest.provider === "codeforces.gym" && entry.state.submissionCount >= 2,
     );
-    const regularEntries = entries.filter(
+    const regularEntries = qualifiedEntries.filter(
       (entry) =>
-        entry.contest.provider === "codeforces.contest" && entry.state.submissionCount >= 1,
+        entry.contest.provider === "codeforces.contest" && entry.state.submissionCount >= 2,
     );
     const allContests = [...gymEntries, ...regularEntries];
     const allContestIds = allContests.map((entry) => entry.contest.id);
@@ -728,12 +764,16 @@ export const makeUpsolvingService = Effect.gen(function* () {
       primaryContestEntries.push(...userEntries);
     }
     const entries = mergeContestEntries(primaryContestEntries);
-    const gymEntries = entries.filter(
+    const qualifiedEntries = yield* filterContestsWithTwoDistinctProblems(
+      entries,
+      primaryUserIds,
+    );
+    const gymEntries = qualifiedEntries.filter(
       (entry) => entry.contest.provider === "codeforces.gym" && entry.state.submissionCount >= 2,
     );
-    const regularEntries = entries.filter(
+    const regularEntries = qualifiedEntries.filter(
       (entry) =>
-        entry.contest.provider === "codeforces.contest" && entry.state.submissionCount >= 1,
+        entry.contest.provider === "codeforces.contest" && entry.state.submissionCount >= 2,
     );
 
     const totalContestCount = gymEntries.length;

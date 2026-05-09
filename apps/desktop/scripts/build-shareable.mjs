@@ -21,6 +21,10 @@ function run(command, args, options = {}) {
 }
 
 function resolveBunExecutable() {
+  if (process.env.BUN_EXECUTABLE?.trim()) {
+    return resolve(process.env.BUN_EXECUTABLE);
+  }
+
   if (basename(process.execPath).toLowerCase().startsWith("bun")) {
     return process.execPath;
   }

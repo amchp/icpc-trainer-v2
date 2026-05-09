@@ -44,7 +44,7 @@ export function makeTestApplicationLayer(fakeCodeforcesClient: CodeforcesClientS
     Layer.provide(Layer.mergeAll(BaseLive, CatalogSyncFullLive, HandleSyncFullLive)),
   );
   const RosterServiceFullLive = RosterServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(BaseLive, HandleSyncFullLive)),
+    Layer.provide(Layer.mergeAll(BaseLive, HandleSyncFullLive, SessionServiceFullLive)),
   );
   const GymFinderServiceFullLive = GymFinderServiceLive.pipe(
     Layer.provide(Layer.mergeAll(RepositoryLive, SessionServiceFullLive)),
